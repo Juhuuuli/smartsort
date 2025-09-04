@@ -1,0 +1,54 @@
+services:
+  app:
+    # FastAPI application (Uvicorn) container
+    build: ./backend
+    container_name: smartsort_app
+    ports:
+      - "8001:8001"           # expose API on host:8001 -> Had to because of SwaggerUI
+    depends_on:
+      - db                    # start order; not a readiness check
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/smartsortdb     # SQLAlchemy DSN
+    volumes:
+      - ./backend/app:/app                # live-mount app source for dev
+      - ./backend/app/models:/app/models  # ensure YOLO weights are available in container
+
+  db:
+    # PostgreSQL database service
+    image: postgres:15
+    container_name: smartsort_db
+    restart: always           # auto-restart on failure/reboot
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: smartsortdb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data      # persistent DB storage
+      - ./backups:/backups                          # host-mounted backups directory (for me)
+
+  # Service for manual one-time backup
+  backup-once:
+    image: postgres:15
+    container_name: smartsort_backup_once
+    depends_on:
+      - db
+    volumes:
+      - ./backups:/backups
+    entrypoint: >
+      bash -c "PGPASSWORD=postgres pg_dump -h db -U postgres smartsortdb > /backups/manual_$(date +%F_%H-%M-%S).sql"
+
+  # Service for automatic daily backups at 02:00
+  backup-cron:
+    image: alpine:3.20
+    container_name: smartsort_backup_cron
+    depends_on:
+      - db
+    volumes:
+      - ./backups:/backups
+    entrypoint: >
+      sh -c "apk add --no-cache postgresql-client dcron &&
+             echo '0 2 * * * PGPASSWORD=postgres pg_dump -h db -U postgres smartsortdb > /backups/auto_$(date +\%F_\%H-%M-%S).sql' > /etc/crontabs/root &&
+             crond -f -L /dev/stdout"
+
+volumes:
+  postgres_data:   # <- important DB-Services knows the rightvolume

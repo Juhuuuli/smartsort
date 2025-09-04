@@ -1,0 +1,16 @@
+# Core web framework (API layer)
+fastapi
+# ASGI server for running FastAPI (+extras: websockets, h11, etc.)
+uvicorn[standard]
+# ORM and DB tooling
+sqlalchemy
+# PostgreSQL async driver (useful if migrating to async SQLAlchemy)
+asyncpg
+# PostgreSQL sync driver (used by current sync SessionLocal setup)
+psycopg2-binary
+# Needed to handle file uploads (Form/File in FastAPI)
+python-multipart
+# YOLOv8 model and utilities for detection/classification
+ultralytics
+# OpenCV bindings (image I/O and utilities; required by some Ultralytics ops)
+opencv-python
